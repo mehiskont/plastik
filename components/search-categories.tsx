@@ -45,9 +45,8 @@ export function SearchCategories({ activeCategory, query, onCategoryChange, isCo
             "px-3 py-1 text-xs sm:px-4 sm:py-2 sm:text-sm h-auto",
         )
 
-        // Define shared props for cleaner code
+        // Define shared props for cleaner code (without the key)
         const buttonSharedProps = {
-          key: category.id,
           variant: "ghost" as const,
           size: "sm" as const,
         }
@@ -68,6 +67,7 @@ export function SearchCategories({ activeCategory, query, onCategoryChange, isCo
 
         return onCategoryChange ? (
           <Button
+            key={category.id}
             {...buttonSharedProps}
             onClick={(e) => handleClick(category.id, e)}
             className={buttonComputedClassName}
@@ -76,6 +76,7 @@ export function SearchCategories({ activeCategory, query, onCategoryChange, isCo
           </Button>
         ) : (
           <Button
+            key={category.id}
             {...buttonSharedProps}
             asChild
             className={buttonComputedClassName}
