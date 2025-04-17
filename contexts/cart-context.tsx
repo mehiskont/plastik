@@ -70,6 +70,37 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
   
+  // Load cart from database when user logs in
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.id) {
+      setLoading(true)
+      
+      // Fetch cart from database
+      fetch(`/api/cart-merge?userId=${session.user.id}&fetch=true`)
+        .then(response => {
+          if (response.ok) {
+            return response.json()
+          }
+          throw new Error('Failed to fetch cart from database')
+        })
+        .then(data => {
+          if (data.items && data.items.length > 0) {
+            // Only update if there are items
+            setCart(prev => ({
+              ...prev,
+              items: data.items
+            }))
+          }
+        })
+        .catch(error => {
+          console.error('Error loading cart from database:', error)
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    }
+  }, [status, session])
+  
   // Save cart to localStorage when it changes
   useEffect(() => {
     saveToStorage('cart', cart)
@@ -84,9 +115,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         String(item.discogsReleaseId) === String(record.discogsReleaseId)
       )
       
+      let updatedCart;
       if (exists) {
         // Update quantity if exists
-        return {
+        updatedCart = {
           ...prev,
           items: prev.items.map(item => {
             if (
@@ -100,11 +132,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Add new item
-        return {
+        updatedCart = {
           ...prev,
           items: [...prev.items, { ...record, quantity: 1 }]
         }
       }
+      
+      // Save to database if user is authenticated
+      if (status === 'authenticated' && session?.user?.id) {
+        // Don't await this - let it run in the background
+        fetch('/api/cart-merge', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            guestCartItems: updatedCart.items,
+            userId: session.user.id
+          })
+        })
+        .catch(error => {
+          console.error('Failed to save cart to database:', error)
+        })
+      }
+      
+      return updatedCart;
     })
     
     toast({
@@ -115,13 +167,36 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   
   // Remove item from cart
   const removeFromCart = (id: string | number) => {
-    setCart(prev => ({
-      ...prev,
-      items: prev.items.filter(item => 
-        String(item.id) !== String(id) && 
-        String(item.discogsReleaseId) !== String(id)
-      )
-    }))
+    setCart(prev => {
+      const updatedCart = {
+        ...prev,
+        items: prev.items.filter(item => 
+          String(item.id) !== String(id) && 
+          String(item.discogsReleaseId) !== String(id)
+        )
+      };
+      
+      // Save to database if user is authenticated
+      if (status === 'authenticated' && session?.user?.id) {
+        // Don't await this - let it run in the background
+        fetch('/api/cart-merge', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            guestCartItems: updatedCart.items,
+            userId: session.user.id,
+            logoutSave: true // Force replace the entire cart
+          })
+        })
+        .catch(error => {
+          console.error('Failed to save cart to database:', error)
+        })
+      }
+      
+      return updatedCart;
+    });
   }
   
   // Update item quantity
@@ -131,23 +206,68 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return
     }
     
-    setCart(prev => ({
-      ...prev,
-      items: prev.items.map(item => {
-        if (
-          String(item.id) === String(id) || 
-          String(item.discogsReleaseId) === String(id)
-        ) {
-          return { ...item, quantity }
-        }
-        return item
-      })
-    }))
+    setCart(prev => {
+      const updatedCart = {
+        ...prev,
+        items: prev.items.map(item => {
+          if (
+            String(item.id) === String(id) || 
+            String(item.discogsReleaseId) === String(id)
+          ) {
+            return { ...item, quantity }
+          }
+          return item
+        })
+      };
+      
+      // Save to database if user is authenticated
+      if (status === 'authenticated' && session?.user?.id) {
+        // Don't await this - let it run in the background
+        fetch('/api/cart-merge', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            guestCartItems: updatedCart.items,
+            userId: session.user.id
+          })
+        })
+        .catch(error => {
+          console.error('Failed to save cart to database:', error)
+        })
+      }
+      
+      return updatedCart;
+    });
   }
   
   // Clear cart
   const clearCart = () => {
-    setCart(prev => ({ ...prev, items: [] }))
+    setCart(prev => {
+      const updatedCart = { ...prev, items: [] };
+      
+      // Save to database if user is authenticated
+      if (status === 'authenticated' && session?.user?.id) {
+        // Don't await this - let it run in the background
+        fetch('/api/cart-merge', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            guestCartItems: [],
+            userId: session.user.id,
+            logoutSave: true // Force replace the entire cart
+          })
+        })
+        .catch(error => {
+          console.error('Failed to clear cart in database:', error)
+        })
+      }
+      
+      return updatedCart;
+    })
   }
   
   // Toggle cart open/closed
