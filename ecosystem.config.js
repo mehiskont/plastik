@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'plastik',
-      script: 'npm',
+      script: 'server.js',
       args: 'start',
       cwd: '/data02/virt136781/domeenid/www.plastikrecords.ee/rekords', // Updated with current project path
       env: {

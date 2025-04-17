@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "build:fallback": "node build-with-fallback.js",
-    "start": "next start",
+    "start": "node server.js",
+    "start:next": "next start",
     "lint": "next lint",
     "test:connections": "node -r dotenv/config scripts/test-connections.js",
     "test:final": "node -r dotenv/config scripts/verify-final.js"

@@ -21,8 +21,19 @@ const nextConfig = {
     // Disable HMR in production
     if (!dev) {
       config.optimization.moduleIds = 'deterministic';
+      // Completely disable HMR in production
+      if (!isServer) {
+        // Disable client-side HMR connection attempts
+        config.plugins = config.plugins.filter(
+          (plugin) => plugin.constructor.name !== 'HotModuleReplacementPlugin'
+        );
+      }
     }
     return config;
+  },
+  // Disable development-only features in production
+  devIndicators: {
+    buildActivity: false,
   },
   images: {
     unoptimized: false,
@@ -42,10 +53,6 @@ const nextConfig = {
     parallelServerCompiles: true,
   },
   env: {
-    // Ensure Supabase variables are available during build
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    
     // Add fallback for build process
     BUILD_DATABASE_FALLBACK: 'true'
   },

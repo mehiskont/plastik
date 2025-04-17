@@ -8,6 +8,11 @@ export async function middleware(request: NextRequest) {
   // Get the pathname from the URL
   const path = request.nextUrl.pathname
   
+  // Block webpack HMR in production to prevent the WebSocket connection error
+  if (path === '/_next/webpack-hmr' && process.env.NODE_ENV === 'production') {
+    return new NextResponse(null, { status: 404 })
+  }
+  
   // Check if the request is for a protected route
   const isProtectedRoute = path.startsWith('/dashboard')
   
@@ -84,5 +89,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/_next/webpack-hmr',
   ],
 }
