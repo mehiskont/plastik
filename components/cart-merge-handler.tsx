@@ -44,31 +44,48 @@ export default function CartMergeHandler() {
         // Also ensure the regular cart in localStorage has the items
         localStorage.setItem('cart', JSON.stringify(cart))
         
-        // Persist cart data to server before logout if possible (even though session is ending)
+        // Persist cart data to server before logout if possible via the proxy
         // This attempts a final save to ensure items are stored server-side
+        // Note: The session might already be ending, so this is best-effort
+        log('Attempting pre-logout cart save via proxy', { itemCount: cart.items.length }, 'info');
         try {
-          fetch('/api/cart-merge', {
+          // Use the proxy, targeting the merge/save endpoint
+          fetch('/api/cart-proxy?target=cart/merge', { // <<< CHANGED to proxy endpoint
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
               guestCartItems: cart.items,
-              logoutSave: true // Flag indicating this is a pre-logout save
-            })
+              // Add any flags your external API might need for a logout save, if applicable
+              // e.g., logoutSave: true 
+            }),
+            // Optional: Use keepalive for requests during page unload
+            // keepalive: true 
           })
-          .then(response => {
+          .then(async response => { // Make async to read potential error body
             if (response.ok) {
-              log('Cart items successfully persisted before logout', {
-                itemCount: cart.items.length
+              log('Pre-logout save request successful (via proxy)', {
+                itemCount: cart.items.length,
+                status: response.status
               }, 'info')
+            } else {
+                // Log error details from API if available
+                const errorBody = await response.text();
+                log('Pre-logout save request failed (via proxy)', { 
+                    status: response.status, 
+                    error: errorBody,
+                    itemCount: cart.items.length
+                }, 'warn');
             }
           })
           .catch(error => {
-            log('Failed to persist cart before logout', { error }, 'error')
+            // Network errors or issues with the fetch itself
+            log('Failed to send pre-logout save request (network error)', { error: error.message }, 'error')
           })
-        } catch (error) {
-          log('Error sending logout cart persistence request', { error }, 'error')
+        } catch (error: any) {
+          // Synchronous errors (e.g., JSON stringify fails - unlikely)
+          log('Error constructing pre-logout cart persistence request', { error: error.message }, 'error')
         }
       }
     }
