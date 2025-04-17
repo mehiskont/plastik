@@ -1,0 +1,7 @@
+node_modules/
+.next/
+logs/
+temp_repo/
+.env
+.env.*
+!.env.example

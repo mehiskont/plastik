@@ -1,0 +1,79 @@
+name: Deploy to Zone.ee
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+      NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+      NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+      REDIS_ENABLED: ${{ secrets.REDIS_ENABLED }}
+      REDIS_URL: ${{ secrets.REDIS_URL }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}  
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET: ${{ secrets.NEXT_PUBLIC_STRIPE_WEBHOOK_SECRET }}
+      DISCOGS_API_TOKEN: ${{ secrets.DISCOGS_API_TOKEN }}
+      DISCOGS_API_SECRET: ${{ secrets.DISCOGS_API_SECRET }}
+      DISCOGS_CONSUMER_KEY: ${{ secrets.DISCOGS_CONSUMER_KEY }}
+      DISCOGS_CONSUMER_SECRET: ${{ secrets.DISCOGS_CONSUMER_SECRET }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@main
+      
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Generate Prisma client
+        run: npx prisma generate
+        
+      - name: Connect to server over SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.HOST_SERVER_IP }} >> ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_rsa
+        
+      - name: Test SSH Connection
+        run: |
+          echo "Testing SSH connection..."
+          ssh -v -i ~/.ssh/id_rsa ${{ secrets.SSH_LOGIN_CREDS }} "echo Connection successful"
+          
+      - name: Deploy to server using SFTP
+        run: |
+          # Create SFTP batch commands
+          echo "mkdir -p ${{ secrets.PROJECT_PATH }}" > sftp_commands.txt
+          echo "cd ${{ secrets.PROJECT_PATH }}" >> sftp_commands.txt
+          echo "put -r ./.next" >> sftp_commands.txt
+          echo "put -r ./public" >> sftp_commands.txt
+          echo "put -r ./prisma" >> sftp_commands.txt
+          echo "put package.json" >> sftp_commands.txt
+          echo "put package-lock.json" >> sftp_commands.txt
+          echo "put next.config.js" >> sftp_commands.txt
+          
+          # Execute SFTP commands
+          sftp -i ~/.ssh/id_rsa ${{ secrets.SSH_LOGIN_CREDS }} < sftp_commands.txt
+          
+          # Run post-deployment commands over SSH
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_LOGIN_CREDS }} "cd ${{ secrets.PROJECT_PATH }} && npm ci --legacy-peer-deps && npx prisma migrate deploy && echo 'Building Next.js application...' && npm run build && pm2 describe ${{ secrets.PM2_APP_NAME }} > /dev/null && pm2 restart ${{ secrets.PM2_APP_NAME }} || pm2 start npm --name ${{ secrets.PM2_APP_NAME }} -- run start"
