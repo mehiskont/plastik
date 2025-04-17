@@ -27,7 +27,7 @@ import type { JWT } from "next-auth/jwt";
 export const authOptions: NextAuthOptions = {
   // Remove adapter entirely - Frontend will not manage user persistence
   // adapter: { ... }, 
-  debug: process.env.NODE_ENV === 'development',
+  debug: false,
   logger: {
     error: (code, ...message) => {
       console.error(code, ...message)

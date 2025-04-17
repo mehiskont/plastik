@@ -32,10 +32,10 @@ export async function sendOrderConfirmationEmail(to: string, orderDetails: any) 
     // IMPORTANT: For development/testing with free Resend account, only send to your own email
     // Must use your own email address for testing as Resend's free tier only allows sending to your own email
     // In production, you would use the actual customer email
-    const testEmail = "mehiskont@gmail.com"; // Replace with your registered Resend email
-    const recipientEmail = process.env.NODE_ENV === "production" ? to : testEmail;
+    // Always use the actual customer email in production
+    const recipientEmail = to;
     
-    log(`Using email recipient: ${recipientEmail} (original: ${to}) - ${process.env.NODE_ENV === "production" ? "production mode" : "development mode"}`);
+    log(`Using email recipient: ${recipientEmail} - production mode`);
     
     // Ensure we have cover_image field for all items (for email template)
     const enhancedItems = orderDetails.items.map((item: any) => ({

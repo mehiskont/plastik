@@ -13,6 +13,17 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Set production mode explicitly
+  reactStrictMode: true,
+  productionBrowserSourceMaps: false,
+  // Disable webpack HMR in production
+  webpack: (config, { dev, isServer }) => {
+    // Disable HMR in production
+    if (!dev) {
+      config.optimization.moduleIds = 'deterministic';
+    }
+    return config;
+  },
   images: {
     unoptimized: false,
     domains: [

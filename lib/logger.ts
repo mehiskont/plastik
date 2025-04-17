@@ -56,8 +56,8 @@ export function log(message: string | any, details?: any, level: "info" | "error
     console.error("Failed to write to log file:", err);
   }
 
-  // Also log to console in development with appropriate method
-  if (process.env.NODE_ENV === "development") {
+  // Console logging disabled in production
+  if (false) {
     switch (level) {
       case "error":
         console.error(message, details || '');
